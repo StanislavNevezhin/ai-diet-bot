@@ -1,0 +1,94 @@
+# ==============================================
+# Локальная конфигурация для разработки на Amvera
+# Этот файл используется для локального тестирования
+# перед развертыванием на продакшен
+# ==============================================
+
+name: ai-diet-bot-local
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=development
+      - BOT_TOKEN=${BOT_TOKEN:-test_token}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-test_key}
+      - DB_HOST=localhost
+      - DB_PORT=5432
+      - DB_NAME=ai_diet_bot_dev
+      - DB_USER=postgres
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - WEBHOOK_URL=http://localhost:8080/webhook
+      - LOG_LEVEL=DEBUG
+      - DEBUG=true
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    command: ["python", "main.py"]
+    stdin_open: true
+    tty: true
+
+  # Локальная база данных для разработки
+  postgres:
+    image: postgres:14
+    environment:
+      - POSTGRES_DB=ai_diet_bot_dev
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.py:/docker-entrypoint-initdb.d/init_db.py
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # PGAdmin для управления базой данных (опционально)
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+# ==============================================
+# ИНСТРУКЦИЯ ДЛЯ ЛОКАЛЬНОГО ЗАПУСКА:
+# ==============================================
+
+# 1. Установите Docker и Docker Compose
+# 2. Скопируйте .env.example в .env и настройте переменные
+# 3. Запустите команду:
+#    docker-compose -f amvera.local.yml up --build
+#
+# 4. Приложение будет доступно на http://localhost:8080
+# 5. База данных на localhost:5432
+# 6. PGAdmin на http://localhost:5050 (логин: admin@example.com, пароль: admin)
+#
+# 7. Для инициализации базы данных выполните:
+#    docker-compose -f amvera.local.yml exec app python init_db.py
+#
+# 8. Для остановки: docker-compose -f amvera.local.yml down
+# ==============================================
+
+# Переменные окружения для локальной разработки:
+# Эти переменные можно установить в .env файле или передать при запуске
+#
+# BOT_TOKEN=your_test_bot_token
+# DEEPSEEK_API_KEY=your_test_api_key  
+# DB_PASSWORD=your_postgres_password
+#
+# Примечание: Для реального использования замените test значения
+# на реальные токены и ключи API

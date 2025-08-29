@@ -1,0 +1,110 @@
+# ==============================================
+# Конфигурация развертывания на Amvera
+# для AI диетолога 3.0
+# ==============================================
+
+name: ai-diet-bot
+services:
+  app:
+    # Использование собранного Docker образа
+    build: .
+    
+    # Порт для вебхуков Telegram
+    ports:
+      - 8080
+    
+    # Переменные окружения (устанавливаются в панели управления Amvera)
+    environment:
+      - ENVIRONMENT=production
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - LOG_LEVEL=INFO
+    
+    # Ресурсы (можно настроить под нагрузку)
+    resources:
+      memory: 512Mi
+      cpu: 0.5
+    
+    # Health check для мониторинга
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    
+    # Перезапуск приложения при сбоях
+    restart: unless-stopped
+    
+    # Масштабирование (начальные настройки)
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+
+# База данных PostgreSQL (предоставляется Amvera)
+# Автоматически создается при подключении к проекту
+database:
+  postgres:
+    version: "14"
+    resources:
+      memory: 256Mi
+      cpu: 0.25
+
+# Планировщик развертывания
+deploy:
+  strategy: rolling
+  rollback:
+    enabled: true
+    max_failure_ratio: 0.2
+  
+  # Мониторинг и логи
+  monitoring:
+    enabled: true
+    metrics:
+      - cpu
+      - memory
+      - network
+  
+  # Автоматическое масштабирование (опционально)
+  autoscaling:
+    enabled: false
+    min_replicas: 1
+    max_replicas: 3
+    target_cpu_utilization: 70
+
+# Переменные окружения, которые должны быть установлены
+# в панели управления Amvera:
+#
+# Обязательные:
+# - BOT_TOKEN: Токен Telegram бота
+# - DEEPSEEK_API_KEY: API ключ DeepSeek
+# - DB_HOST: Хост базы данных
+# - DB_PORT: Порт базы данных
+# - DB_NAME: Имя базы данных
+# - DB_USER: Пользователь базы данных
+# - DB_PASSWORD: Пароль базы данных
+# - WEBHOOK_URL: URL для вебхуков
+#
+# Опциональные:
+# - ADMIN_USER_ID: ID администратора для уведомлений
+# - SUPPORT_CHAT_ID: ID чата поддержки
+# - DEEPSEEK_MODEL: Модель DeepSeek
+# - DEEPSEEK_TEMPERATURE: Температура генерации
+# - DEEPSEEK_MAX_TOKENS: Максимальное количество токенов
+
+# ==============================================
+# ИНСТРУКЦИЯ ПО РАЗВЕРТЫВАНИЮ:
+# 1. Создать проект в Amvera
+# 2. Подключить базу данных PostgreSQL
+# 3. Установить переменные окружения в панели управления
+# 4. Запушить код в репозиторий проекта
+# 5. Amvera автоматически соберет и запустит приложение
+# ==============================================
